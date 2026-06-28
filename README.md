@@ -4,11 +4,16 @@ Cryptocurrency trading simulator with a virtual $10,000 balance, real-time
 Kraken prices, watchlists, price alerts, and saved portfolio reports with
 PDF export.
 
+> **Author:** Daniel Stefanov · FN 0MI0600397
+> **Course:** *Fullstack Application Development with Node.js + Express.js + React.js*
+> **GitHub:** <https://github.com/danielstefanov212/CryptoSim>
+
 - **Backend:** Node.js 20+, TypeScript, Express, Socket.IO, Prisma, PostgreSQL.
 - **Frontend:** React + Vite + TypeScript, Chart.js.
 - **Market data:** Kraken WebSocket (live prices) + Kraken REST OHLC (history).
 
-See `../specs/` for `requirements.md`, `technical_plan.md`, `delivery_plan.md`.
+Documentation: [`docs/`](./docs/) — requirements, technical plan, delivery plan.
+Short Bulgarian presentation: [`presentation/`](./presentation/).
 
 ## Prerequisites
 
