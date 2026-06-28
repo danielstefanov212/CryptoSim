@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: cryptosim-postgres
+    environment:
+      POSTGRES_USER: cryptosim
+      POSTGRES_PASSWORD: cryptosim
+      POSTGRES_DB: cryptosim
+    ports:
+      - "5432:5432"
+    volumes:
+      - cryptosim-pg:/var/lib/postgresql/data
+
+volumes:
+  cryptosim-pg:

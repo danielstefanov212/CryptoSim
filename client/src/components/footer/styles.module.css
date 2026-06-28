@@ -1,0 +1,15 @@
+.page-footer {
+  width: 100%;
+  text-align: center;
+  background-color: var(--primary-background);
+  color: var(--on-primary-background);
+  padding: 1rem 1.5rem;
+  margin-top: auto;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.footerText {
+  margin: 0;
+  font-size: 0.9rem;
+  opacity: 0.9;
+}

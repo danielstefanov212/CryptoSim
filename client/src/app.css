@@ -1,0 +1,70 @@
+body.light {
+  --neutral-background: #ffffff;
+  --neutral-background-100: rgba(45, 45, 45, 0.648);
+
+  --primary-text-color: #1d2022;
+  --on-primary-text-color: #1d2022;
+  --on-secondary-text-color: #1d2022;
+
+  --primary-background: #357ab8;
+  --primary-background-100: #5c91bf;
+  --primary-background-300: #bbe0ff;
+  --on-primary-background: #ffffff;
+
+  --secondary-background: #dbeeff;
+  --secondary-background-100: #eef6fd;
+  --on-secondary-background: #004761;
+  --toggle-button-toggler-color: #10548f;
+
+  --green: #008b00;
+  --red: #ff0000;
+
+  --error: #ff0000;
+  --error-100: #ff4949;
+  --on-error: #ffffff;
+  --disabled-color: #9eaec9;
+
+  --default-box-shadow: 2px 2px rgba(0, 0, 0, 0.15);
+
+  --primary-text-size: 28px;
+  --secondary-text-size: 26px;
+  --button-text-size: 20px;
+}
+
+body.dark {
+  --neutral-background: #2d2d2da5;
+  --neutral-background-100: rgba(45, 45, 45, 0.648);
+
+  --primary-text-color: #ffffff;
+  --on-primary-text-color: #ffffff;
+  --on-secondary-text-color: #ffffff;
+
+  --primary-background: #1d4b74;
+  --primary-background-100: #357bb8a4;
+  --primary-background-300: #91cbff;
+  --on-primary-background: #d3ebff;
+
+  --secondary-background: #1d2022;
+  --secondary-background-100: rgba(47, 53, 58, 0.952);
+  --on-secondary-background: #ffffff;
+  --toggle-button-toggler-color: #48a5f7;
+
+  --green: #008b00;
+  --red: #ff0000;
+
+  --error: #bb0000;
+  --error-100: #b63939;
+  --on-error: #ffffff;
+  --disabled-color: #9eaec9;
+
+  --default-box-shadow: 4px 4px rgba(0, 0, 0, 0.479);
+
+  --primary-text-size: 32px;
+  --secondary-text-size: 26px;
+  --button-text-size: 20px;
+}
+
+body {
+  background-color: var(--neutral-background);
+  color: var(--primary-text-color);
+}

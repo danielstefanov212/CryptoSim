@@ -1,0 +1,141 @@
+.ticker-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  background-color: var(--primary-background);
+  color: var(--on-primary-background);
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+  box-shadow: var(--default-box-shadow);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+  min-width: 0;
+}
+
+.clickable {
+  cursor: pointer;
+}
+
+.clickable:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+
+.clickable:focus-visible {
+  outline: 3px solid var(--on-primary-background);
+  outline-offset: 2px;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.symbol-block {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.position {
+  font-size: 0.85rem;
+  opacity: 0.7;
+  font-weight: 500;
+}
+
+.symbol {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.change-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #ffffff;
+}
+
+.positive {
+  background-color: var(--green);
+}
+
+.negative {
+  background-color: var(--red);
+}
+
+.price-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.price {
+  font-size: 1.85rem;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.change-amount {
+  font-size: 0.95rem;
+  font-weight: 600;
+  opacity: 0.95;
+}
+
+.positive-text {
+  color: #b8f4b8;
+}
+
+.negative-text {
+  color: #ffb8b8;
+}
+
+.stats-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  background-color: var(--secondary-background);
+  color: var(--on-secondary-background);
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  min-width: 0;
+}
+
+.stat-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.7;
+}
+
+.stat-value {
+  font-size: 0.95rem;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.open-hint {
+  font-size: 0.8rem;
+  opacity: 0.75;
+  margin-top: -0.25rem;
+}
+
+.waiting {
+  font-size: 0.95rem;
+  opacity: 0.7;
+}

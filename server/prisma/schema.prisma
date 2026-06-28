@@ -1,0 +1,124 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  TRADER
+  ADMIN
+}
+
+enum OrderType {
+  BUY
+  SELL
+}
+
+enum AlertDirection {
+  ABOVE
+  BELOW
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  balance   Decimal  @default(10000) @db.Decimal(18, 8)
+  role      Role     @default(TRADER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orders    Order[]
+  holdings  Holding[]
+  watchlist Watchlist[]
+  alerts    PriceAlert[]
+  reports   ReportTemplate[]
+}
+
+model CryptoAsset {
+  id             String   @id @default(cuid())
+  symbol         String   @unique
+  krakenPair     String   @unique
+  krakenRestPair String
+  name           String
+  description    String?
+  imageUrl       String?
+  displayOrder   Int?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Order {
+  id               String    @id @default(cuid())
+  userId           String
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orderType        OrderType
+  symbol           String
+  amount           Decimal   @db.Decimal(28, 12)
+  priceAtExecution Decimal   @db.Decimal(18, 8)
+  totalCost        Decimal   @db.Decimal(18, 8)
+  createdAt        DateTime  @default(now())
+
+  @@index([userId, createdAt])
+  @@index([userId, symbol, createdAt])
+}
+
+model Holding {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  symbol          String
+  amount          Decimal  @db.Decimal(28, 12)
+  averageBuyPrice Decimal  @db.Decimal(18, 8)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([userId, symbol])
+}
+
+model Watchlist {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  symbol    String
+  notes     String?
+  createdAt DateTime @default(now())
+
+  @@unique([userId, symbol])
+}
+
+model PriceAlert {
+  id          String         @id @default(cuid())
+  userId      String
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  symbol      String
+  targetPrice Decimal        @db.Decimal(18, 8)
+  direction   AlertDirection
+  isTriggered Boolean        @default(false)
+  isActive    Boolean        @default(true)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([symbol, isActive, isTriggered])
+  @@index([userId])
+}
+
+model ReportTemplate {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  symbols     String[]
+  startDate   DateTime?
+  endDate     DateTime?
+  rollingDays Int?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([userId])
+}

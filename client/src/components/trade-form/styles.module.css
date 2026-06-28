@@ -1,0 +1,221 @@
+.trade-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  background-color: var(--primary-background);
+  color: var(--on-primary-background);
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: var(--default-box-shadow);
+  position: sticky;
+  top: 1rem;
+}
+
+.tab-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  background-color: var(--secondary-background);
+  padding: 0.25rem;
+  border-radius: 10px;
+}
+
+.tab {
+  border: none;
+  background: transparent;
+  color: var(--on-secondary-background);
+  padding: 0.6rem 1rem;
+  font-weight: 600;
+  font-size: 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.tab:hover {
+  background-color: var(--secondary-background-100);
+}
+
+.tab-active-buy {
+  background-color: var(--green);
+  color: #ffffff;
+}
+
+.tab-active-buy:hover {
+  background-color: var(--green);
+}
+
+.tab-active-sell {
+  background-color: var(--red);
+  color: #ffffff;
+}
+
+.tab-active-sell:hover {
+  background-color: var(--red);
+}
+
+.context-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  background-color: var(--secondary-background);
+  color: var(--on-secondary-background);
+  padding: 1rem;
+  border-radius: 10px;
+}
+
+.context-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.context-label {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.7;
+}
+
+.context-value {
+  font-size: 1.05rem;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.amount-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.amount-label {
+  font-size: 0.9rem;
+  font-weight: 500;
+  opacity: 0.9;
+}
+
+.amount-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-color: var(--neutral-background);
+  color: var(--primary-text-color);
+  box-sizing: border-box;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.amount-input:focus {
+  border-color: var(--primary-background-300);
+}
+
+.amount-input-error {
+  border-color: var(--error);
+}
+
+.amount-input-error:focus {
+  border-color: var(--error);
+}
+
+.quick-fills {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.5rem;
+}
+
+.quick-fill {
+  border: 1px solid transparent;
+  background-color: var(--secondary-background);
+  color: var(--on-secondary-background);
+  padding: 0.45rem 0.5rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.quick-fill:hover:not(:disabled) {
+  background-color: var(--secondary-background-100);
+}
+
+.quick-fill:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.preview-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  background-color: var(--secondary-background);
+  color: var(--on-secondary-background);
+  padding: 0.9rem 1rem;
+  border-radius: 10px;
+}
+
+.preview-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 0.95rem;
+  gap: 1rem;
+}
+
+.preview-row strong {
+  font-size: 1.05rem;
+}
+
+.error-alert {
+  background-color: var(--error);
+  color: var(--on-error);
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.success-alert {
+  background-color: var(--green);
+  color: #ffffff;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-weight: 500;
+}
+
+.submit-button {
+  font-size: 1.05rem;
+  font-weight: 700;
+  padding: 0.85rem 1rem;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.15s, filter 0.15s;
+}
+
+.submit-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.submit-buy {
+  background-color: var(--green);
+  color: #ffffff;
+}
+
+.submit-buy:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.submit-sell {
+  background-color: var(--red);
+  color: #ffffff;
+}
+
+.submit-sell:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
