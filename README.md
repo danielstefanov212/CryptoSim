@@ -12,8 +12,8 @@ PDF export.
 - **Frontend:** React + Vite + TypeScript, Chart.js.
 - **Market data:** Kraken WebSocket (live prices) + Kraken REST OHLC (history).
 
-Documentation: [`docs/`](./docs/) — requirements, technical plan, delivery plan.
-Short Bulgarian presentation: [`presentation/`](./presentation/).
+Documentation: [`docs/documentation.txt`](./docs/documentation.txt) (BG).
+Short Bulgarian presentation: [`docs/presentation.pdf`](./docs/presentation.pdf).
 
 ## Prerequisites
 

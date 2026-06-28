@@ -1,0 +1,868 @@
+================================================================================
+   CryptoSim — Симулатор за търговия с криптовалути
+   Документация на курсовия проект
+================================================================================
+
+  Курс:    Fullstack Application Development with Node.js + Express.js +
+           React.js — 2026 г.
+  Автор:   Daniel Stefanov
+  ФН:      0MI0600397
+  GitHub:  https://github.com/danielstefanov212/CryptoSim
+
+
+================================================================================
+   СЪДЪРЖАНИЕ
+================================================================================
+
+  1.  Въведение и цели на проекта
+  2.  Актьори и потребителски сценарии
+  3.  Технологичен стек
+  4.  Архитектура
+  5.  Модел на данните (7 entity-та)
+  6.  Основни функционалности
+        6.1  Регистрация, login и сесия
+        6.2  Покупка и продажба (атомарни сделки)
+        6.3  Holdings и средна изкупна цена
+        6.4  Watchlist
+        6.5  Ценови известия (alerts) с десктоп popup-и
+        6.6  Отчети (Portfolio-Value-Over-Time) с PDF експорт
+        6.7  Админ панел
+  7.  Real-time данни от Kraken
+  8.  Сигурност и валидация (4 слоя)
+  9.  API endpoints (REST + Socket.IO)
+  10. Стартиране на проекта локално
+  11. Структура на репозиторито
+  12. Технически решения и компромиси
+  13. Какво научих и възможни следващи стъпки
+
+
+================================================================================
+   1. ВЪВЕДЕНИЕ И ЦЕЛИ НА ПРОЕКТА
+================================================================================
+
+  CryptoSim е web приложение за безрискова търговия с криптовалути. Всеки
+  потребител получава виртуален баланс от $10 000 и може да купува и продава
+  крипто активи срещу реални пазарни цени, които идват в реално време от
+  борсата Kraken. Никога не се движат реални пари — целта е учебна.
+
+  Цели:
+    - Дава възможност на начинаещи трейдъри да упражняват стратегии без риск.
+    - Покрива пълен trading workflow: котировки → ордер → holding → отчет.
+    - Демонстрира пълен fullstack стек с TypeScript от край до край, REST + 
+      Socket.IO, реални външни данни (Kraken), и нетривиален domain
+      (парични транзакции, real-time агрегации, server-side PDF).
+
+  Курсови ограничения, които повлияха на дизайна:
+    - Едно SPA на React с client-side routing.
+    - REST/JSON API + Socket.IO канал.
+    - 6 или повече основни entity-та.
+    - Един entity е разширен — ReportTemplate (7-мият), който позволява
+      запазваеми, преизпълними отчети за стойността на портфейла.
+
+
+================================================================================
+   2. АКТЬОРИ И ПОТРЕБИТЕЛСКИ СЦЕНАРИИ
+================================================================================
+
+  Анонимен потребител (Anonymous User)
+    - Вижда публична начална страница с топ-3 крипто цени, които се
+      опресняват в реално време чрез публичен Socket.IO namespace.
+    - Може да се регистрира и да стане Trader.
+    - Може да влезе в системата (login).
+
+  Trader
+    - Има виртуален баланс $10 000 при регистрация.
+    - Преглежда списък с активни криптовалути, цени, обем.
+    - Отваря детайлна страница на актив — текуща цена, графика (Chart.js),
+      описание и форма за покупка/продажба.
+    - Извършва BUY ордер — системата проверява дали има достатъчен cash.
+    - Извършва SELL ордер — системата проверява дали има достатъчно holding.
+    - Преглежда историята на ордерите си (filterable по символ).
+    - Преглежда всички свои holdings — average buy price, current price,
+      current value, P/L.
+    - Управлява watchlist (списък активи с бележки).
+    - Създава ценови известия (PriceAlert) — символ, target price, ABOVE/BELOW.
+    - Получава десктоп popup, когато даден alert се задейства.
+    - Създава ReportTemplate-и и пуска отчети за стойността на портфейла си
+      във времето. Може да експортира резултата като PDF.
+    - Може да ресетне сметката си (изтрива ордери и holdings, връща $10 000).
+
+  Admin
+    - Всичко на Trader, плюс:
+    - CRUD на CryptoAsset каталога (добавя/обновява/деактивира активи).
+    - Преглежда всички потребители, променя ролите им (TRADER/ADMIN), трие
+      потребители (с каскадно изтриване на ордерите им чрез Prisma onDelete).
+
+
+================================================================================
+   3. ТЕХНОЛОГИЧЕН СТЕК
+================================================================================
+
+  BACKEND
+    Node.js 20+, TypeScript, ESM модули
+    Express.js — HTTP сървър
+    Socket.IO — real-time канал, два namespace-а
+    Prisma — ORM, типизирани заявки, миграции
+    PostgreSQL 16 — релационна база
+    Zod — валидация на входни данни на HTTP слоя
+    jsonwebtoken — JWT създаване и проверка
+    bcrypt — hash на пароли (10 round-а)
+    pdfkit — server-side PDF генератор
+    chartjs-node-canvas — server-side рендериране на Chart.js графики
+    decimal.js / Prisma.Decimal — точна десетична математика за пари
+    cors — CORS middleware с allow-list
+
+  FRONTEND
+    React 18 + TypeScript
+    Vite — dev server и build tool
+    React Router — client-side routing
+    Chart.js + react-chartjs-2 — графики за цени и отчети
+    Socket.IO client — публичен и частен канал
+    CSS Modules — locally-scoped стилове, без CSS framework
+
+  ВЪНШНИ УСЛУГИ
+    Kraken WebSocket API v2 — реални тикове на цени
+    Kraken REST OHLC endpoint — исторически свещи за отчетите
+
+  ДОПЪЛНИТЕЛНИ ИНСТРУМЕНТИ
+    Docker Compose — стартира локална PostgreSQL за разработка
+    Prisma Migrate — управление на схемата с миграции
+    tsx watch — hot-reload на backend в dev режим
+    Marp — генератор на презентацията от Markdown
+
+
+================================================================================
+   4. АРХИТЕКТУРА
+================================================================================
+
+  Цялостна картина:
+
+    ┌─────────────────────┐   REST + Socket.IO    ┌──────────────────────┐
+    │      React SPA      │ ◀───────────────────▶ │   Express + Socket   │
+    │  (Vite, port 5173)  │                       │    (port 3001)       │
+    └─────────────────────┘                       └──────────┬───────────┘
+                                                             │
+                                                             │ Prisma
+                                                             ▼
+                                                      ┌──────────────┐
+                                                      │  PostgreSQL  │
+                                                      └──────────────┘
+                                                             ▲
+                                                             │
+                                          Kraken WebSocket v2│ + REST OHLC
+                                                             │
+                                                      ┌──────────────┐
+                                                      │ kraken.com   │
+                                                      └──────────────┘
+
+  СЪРВЪРНИ СЛОЕВЕ
+
+    HTTP layer  (src/http/*)
+      - Express app, CORS middleware с allow-list (поддържа множество origins
+        от env, разделени със запетая).
+      - Централизиран error handler — превежда AppError → HTTP response във
+        формат { error: { code, message } }.
+      - serializeDecimals middleware — превежда Prisma.Decimal и decimal.js
+        обектите към string-ове преди JSON serialization (за да няма float
+        грешки и неконсистентен формат).
+
+    Routes  (src/routes/*)
+      - Един route файл на ресурс. Връзват пътя към controller функция,
+        прилагат Zod middleware за validation и auth middleware за защитени
+        маршрути.
+
+    Services  (src/services/*)
+      - Цялата бизнес логика. Без HTTP знание.
+      - Хвърлят AppError с machine-readable код (e.g. INSUFFICIENT_FUNDS,
+        UNKNOWN_SYMBOL, INVALID_WINDOW) и HTTP статус.
+
+    Repositories / Prisma client  (src/lib/prisma.ts)
+      - Един синглетон Prisma client. Сервиси извикват директно prisma.* или
+        използват prisma.$transaction за атомарни операции.
+
+    Auth  (src/auth/*)
+      - JWT helper (sign / verify), bcrypt helper, express middleware,
+      - role guard за admin-only ендпойнти.
+
+    Kraken  (src/kraken/*)
+      - live-client.ts — WebSocket v2 клиент, reconnect logic, refcounted
+        subscriptions, EventEmitter за тикове.
+      - rest-ohlc.ts — fetcher на исторически свещи.
+      - pair-mapping.ts — превод между вътрешни bare символи ("BTC") и
+        Kraken pair формати ("BTC/USD" за WS, "XBTUSD" за REST). Cache-ва
+        активните pair-и в памет; cache-ът се invalidate-ва при admin CRUD.
+
+    Sockets  (src/sockets/*)
+      - public-namespace.ts — анонимни клиенти получават топ-3 цени.
+      - private-namespace.ts — JWT handshake; клиентът се subscribe-ва на
+        символи, влиза в стая, специфична за user-а. Тиковете и alerts се
+        emit-ват в тази стая.
+
+    Alert engine  (src/alerts/*)
+      - In-memory индекс на активните alerts по символ.
+      - При зареждане subscribe-ва за всеки уникален символ от Kraken.
+      - При tick — O(N) обхожда alerts за символа, прави Decimal сравнение.
+      - При trigger — атомарен updateMany({where: {isTriggered: false}}) за
+        защита от double-fire, после emit-ва внутрешен event.
+      - private-namespace слуша този event и push-ва Socket.IO съобщение в
+        потребителската стая.
+
+  ФРОНТЕНД СЛОЕВЕ
+
+    App.tsx
+      - Корен на приложението. Контексти: UserPreferencesProvider, 
+        UserProvider, CryptoPriceProvider (топ-цени за лента и Home).
+      - NotificationsBridge — компонент който се mount-ва веднъж и слуша
+        Socket.IO за alert events, за да показва нативни browser notifications.
+
+    Routes / pages  (src/pages/*)
+      - Login, Register, Home (анонимна), Profile, Holdings, Orders, Trading
+        ticker list, Trading ticker details, Watchlist, Alerts, Reports,
+        Report run, Admin (Users + CryptoAssets).
+
+    Outlets
+      - PrivateOutlet — guard за защитени маршрути; пренасочва към /login.
+      - AdminOutlet — guard за админ-only маршрути.
+
+    Services  (src/services/*)
+      - HTTP сервиси за всеки ресурс (ordersService, alertsService и т.н.) над
+        един общ http-service.ts (custom клас) който нормализира грешки и
+        правилно обработва 204 No Content (за DELETE).
+      - socket-service.ts — refcounted singleton за приватния Socket.IO
+        канал, така че няколко компонента могат да се subscribe-ват без да си
+        отнемат сокета.
+
+    Components  (src/components/*)
+      - Преизползваеми UI блокове (Input, Button, Card, NavigationMenu, 
+        TradeForm, DetailsCryptoCard, NotificationBanner и др.).
+
+    Hooks  (src/hooks/*)
+      - useBrowserNotifications — слушател на alert събития, mount-ва се
+        веднъж в App root за да оцелее през смяна на маршрути.
+      - useNotificationPermission — управлява и експозва permission state-а,
+        използва се от Alerts страницата за да покаже banner с бутон
+        "Enable notifications".
+
+
+================================================================================
+   5. МОДЕЛ НА ДАННИТЕ (7 ENTITY-ТА)
+================================================================================
+
+  Всички ID полета са cuid() string-ове. Всички "user-собствени" таблици са с 
+  onDelete: Cascade — изтриването на user-а автоматично чисти неговите ордери,
+  holdings, watchlist, alerts и report templates.
+
+  USER
+    id, name, email (unique), passwordHash, balance (Decimal), role (TRADER /
+    ADMIN), createdAt, updatedAt.
+    Релации: orders, holdings, watchlist, alerts, reports.
+
+  CRYPTOASSET
+    id, symbol (unique, e.g. "BTC"), name, description, imageUrl, krakenPair
+    (например "XXBTZUSD"), isActive, createdAt, updatedAt.
+    isActive=false означава "архивиран" — не се показва в каталога, но
+    запазва history-то на старите ордери валидно.
+
+  ORDER
+    id, userId, orderType (BUY/SELL), symbol, amount (Decimal), 
+    priceAtExecution (Decimal), totalCost (Decimal), createdAt.
+    Immutable. Никога не се update-ва или трие индивидуално.
+
+  HOLDING
+    id, userId, symbol, amount (Decimal), averageBuyPrice (Decimal),
+    createdAt, updatedAt.
+    Unique constraint (userId, symbol).
+    Average buy price се изчислява по формула:
+      newAvg = (oldAmount * oldAvg + buyAmount * buyPrice) / (oldAmount + buyAmount)
+    При SELL — average buy price НЕ се променя (FIFO модел на разходите).
+
+  WATCHLIST
+    id, userId, symbol, notes (optional), createdAt.
+    Unique constraint (userId, symbol).
+
+  PRICEALERT
+    id, userId, symbol, targetPrice (Decimal), direction (ABOVE/BELOW),
+    isActive, isTriggered, triggeredAt (optional), createdAt, updatedAt.
+    Само isActive && !isTriggered alerts се обработват от engine-а.
+
+  REPORTTEMPLATE
+    id, userId, name, symbols (String[] от bare символи; празно = всички 
+    holdings), startDate (nullable), endDate (nullable, null = "до сега"),
+    rollingDays (nullable int), createdAt, updatedAt.
+    Валидация: ТОЧНО ЕДНО от startDate / rollingDays. Бъдещи дати са забранени.
+    Това дава два режима:
+      - FIXED:    startDate=2025-01-01, endDate=null   → fixed start, ends now
+      - ROLLING:  rollingDays=30                       → последните 30 дни
+
+
+================================================================================
+   6. ОСНОВНИ ФУНКЦИОНАЛНОСТИ
+================================================================================
+
+  -----------------------------------------------------------------------------
+  6.1 РЕГИСТРАЦИЯ, LOGIN И СЕСИЯ
+  -----------------------------------------------------------------------------
+
+    Register flow (POST /api/auth/register):
+      1. Zod валидира: name min(2), email valid format, password min(8) с
+         поне една цифра, repeatPassword === password.
+      2. Проверка че email-ът не е зает (409 EMAIL_TAKEN).
+      3. bcrypt.hash(password, 10).
+      4. prisma.user.create({ balance: 10000, role: TRADER }).
+      5. Връща JWT (HS256, 7 дни TTL) + user обект (без passwordHash).
+
+    Login flow (POST /api/auth/login):
+      1. Zod валидира email + password.
+      2. Намира user по email (401 INVALID_CREDENTIALS ако не съществува).
+      3. bcrypt.compare — пак 401 INVALID_CREDENTIALS при mismatch.
+      4. Връща JWT + user обект.
+
+    JWT storage:
+      - Клиентът пази token-а в localStorage под ключ "cryptosim_token".
+      - При reload — UserProvider извиква GET /api/users/me със Bearer header.
+      - 401 → автоматичен logout, изтрива token-а от localStorage.
+
+    Auth middleware (server):
+      - Извлича Bearer token, jwt.verify(token, JWT_SECRET).
+      - Зарежда user-а от базата (за да не пази stale role) и го слага в
+        req.user.
+      - 401 ако token-ът липсва или е невалиден.
+
+    Admin middleware:
+      - Връща 403 FORBIDDEN ако req.user.role !== ADMIN.
+
+  -----------------------------------------------------------------------------
+  6.2 ПОКУПКА И ПРОДАЖБА (АТОМАРНИ СДЕЛКИ)
+  -----------------------------------------------------------------------------
+
+    Всеки ордер е ЕДНА Prisma транзакция. Или всичко минава, или нищо.
+
+    BUY (POST /api/orders/buy):
+      Body: { symbol, amount }   (amount като string или number → Decimal)
+      1. assertKnownSymbol(symbol) — иначе 400 UNKNOWN_SYMBOL.
+      2. Взима текуща цена от krakenLive cache (400 PRICE_UNAVAILABLE ако
+         символът не се търгува в момента).
+      3. totalCost = amount * price (Decimal).
+      4. prisma.$transaction:
+           - SELECT FOR UPDATE на user-row (превенция на race с друг ордер).
+           - Ако user.balance < totalCost → throw INSUFFICIENT_FUNDS (409).
+           - update user: balance -= totalCost.
+           - upsert holding: amount += amount, averageBuyPrice = preсметнато.
+           - insert order.
+      5. Връща новия order.
+
+    SELL (POST /api/orders/sell):
+      Body: { symbol, amount }
+      1. assertKnownSymbol, цена fetch — както при BUY.
+      2. ВАЖНО: SELECT FOR UPDATE първо на user-row, после на holding.
+         Това поддържа консистентен lock-ред с BUY и предотвратява deadlock.
+      3. Ако holding.amount < amount → INSUFFICIENT_HOLDINGS (409).
+      4. update user.balance += totalCost.
+      5. Ако новият amount е 0 → delete holding; иначе update amount.
+         averageBuyPrice ОСТАВА непроменено.
+      6. insert order (SELL).
+
+    Race condition защита:
+      - Деtects PostgreSQL deadlock (SQLSTATE 40P01) и Prisma serialization 
+        conflict (P2034), мапва ги към 409 CONCURRENT_TRADE — клиентът може 
+        просто да retry-не.
+
+  -----------------------------------------------------------------------------
+  6.3 HOLDINGS И СРЕДНА ИЗКУПНА ЦЕНА
+  -----------------------------------------------------------------------------
+
+    Holdings таблицата е денормализиран snapshot — за бързо четене. Source of
+    truth остават ордерите. /api/holdings връща holdings обогатени с:
+      - currentPrice (от Kraken cache)
+      - currentValue = amount * currentPrice
+      - unrealizedPnL = currentValue - (amount * averageBuyPrice)
+
+    Profile страницата показва пълна таблица: символ, amount, avg buy, current
+    price, current value, P/L.
+
+  -----------------------------------------------------------------------------
+  6.4 WATCHLIST
+  -----------------------------------------------------------------------------
+
+    Списък активи с optional бележки. Unique по (userId, symbol). Клиентът
+    показва текущи цени до символите чрез subscribe в приватния Socket.IO 
+    канал. Add/remove операциите са обикновени CRUD.
+
+  -----------------------------------------------------------------------------
+  6.5 ЦЕНОВИ ИЗВЕСТИЯ (ALERTS) С ДЕСКТОП POPUP-И
+  -----------------------------------------------------------------------------
+
+    AlertEngine жизнен цикъл:
+      - Startup: prisma.priceAlert.findMany({ where: { isActive: true,
+        isTriggered: false }}) → пълни in-memory Map<symbol, Alert[]>.
+      - За всеки уникален символ извиква krakenLive.subscribe(symbol) с 
+        refcount.
+      - krakenLive emit-ва "tick" → engine-ът филтрира alerts за този символ,
+        сравнява с Decimal.gte (ABOVE) или Decimal.lte (BELOW).
+
+    Trigger flow:
+      1. updateMany({ where: { id, isTriggered: false }, data: {
+         isTriggered: true, triggeredAt: now }}) — атомарен; ако count===0
+         значи някой друг го е trigger-нал, прескача.
+      2. Изважда alert-а от in-memory index.
+      3. krakenLive.unsubscribe(symbol) — намалява refcount; ако стане 0
+         реално прекъсва subscription-а към Kraken.
+      4. Emit-ва внутрешен event "alert.triggered" с payload-а.
+
+    Socket.IO bridge (private-namespace.ts):
+      - Слуша engine-а и emit-ва "alert:triggered" в стая user:<id>.
+
+    Browser notification (client):
+      - useBrowserNotifications hook слуша "alert:triggered" и извиква 
+        new Notification(...) с икона /favicon.png, body описание и tag за 
+        deduplication. Fallback — in-app toast, ако browser не поддържа.
+      - Notification permission се иска явно от потребителя чрез banner на 
+        Alerts страницата.
+
+    Управление на alerts:
+      - CRUD е стандартен. При UPDATE engine-ът прави refreshAlert(id):
+        ако символът е същият — просто replace в map-а; ако символът се е
+        сменил — unsubscribe от стария, subscribe за новия.
+      - При DELETE — unsubscribe и махане от map-а.
+
+  -----------------------------------------------------------------------------
+  6.6 ОТЧЕТИ (PORTFOLIO-VALUE-OVER-TIME) С PDF ЕКСПОРТ
+  -----------------------------------------------------------------------------
+
+    ReportTemplate е САМО конфигурация — НЕ съдържа резултати. Всеки run
+    изчислява стойностите от свежи данни.
+
+    Run flow (GET /api/reports/:id/run и POST /api/reports/:id/pdf):
+      1. resolveWindow(template):
+           - end = min(template.endDate ?? now, now)   ← clamp за бъдещи дати
+           - start = template.startDate OR end - rollingDays
+           - Ако start >= end → INVALID_WINDOW (400).
+      2. Determine granularity:
+           - window <= 24h        → 1h свещи
+           - window <= 30d        → 1d
+           - window <= 1y         → 1w
+           - иначе                → 1mo
+         Целта е винаги <= 720 точки за чисто rendering.
+      3. resolveSymbols(template, userOrders):
+           - Ако template.symbols не е празно — използваме него.
+           - Иначе union на всички символи, които user-ът някога е
+             притежавал в order history-то.
+           - Филтрираме на активни (в каталога). Неактивните попадат в
+             inactiveSymbols в отговора като WARNING.
+      4. await Promise.allSettled на krakenOhlc.fetch(symbol, start, end,
+         granularity) — индивидуален failure не убива целия отчет; failures
+         попадат в dataGaps като "fetch_failed".
+      5. За всяка timestamp t от оста на времето:
+           - replay на ордерите до t → holdings + cash.
+           - valuation = cash + sum(holding.amount * price(symbol, t)).
+           - Ако някой holding не може да се цени (липсва OHLC за символа в 
+             t) → точката е { t, value: null } и dataGap "history_gap".
+      6. Връща { template, points, dataGaps, inactiveSymbols, runAt }.
+
+    Chart на клиента:
+      - Chart.js, spanGaps: false → null точки дават визуални прекъсвания
+        вместо да се интерпретират като $0 (което би създало фалшиви крахове).
+      - Summary card-овете (first / last / change / peak / trough) изключват
+        null точките.
+
+    PDF експорт:
+      - chartjs-node-canvas рендерира същата конфигурация на сървъра.
+      - pdfkit генерира многостраничен PDF: заглавие, метаданни на template-а,
+        chart image, таблица с първите 50 точки, секция "Inactive symbols" и
+        "Data gaps" ако има такива.
+      - Връща application/pdf stream с Content-Disposition header.
+
+  -----------------------------------------------------------------------------
+  6.7 АДМИН ПАНЕЛ
+  -----------------------------------------------------------------------------
+
+    CryptoAssets:
+      - List, create, update, deactivate (soft delete). Soft delete = 
+        isActive=false; запазваме историята.
+      - При create/update/deactivate — pair-mapping cache-ът се invalidate-ва
+        автоматично и Kraken subscription списъкът се синхронизира.
+
+    Users:
+      - List всички потребители (без password hash-ове).
+      - Toggle на ролята TRADER ↔ ADMIN.
+      - Delete потребител — Prisma onDelete: Cascade трие неговите ордери,
+        holdings, alerts, watchlist, reports.
+      - AlertEngine също чисти in-memory индекс-а за този user.
+
+
+================================================================================
+   7. REAL-TIME ДАННИ ОТ KRAKEN
+================================================================================
+
+  WEBSOCKET (LIVE PRICES)
+
+    Endpoint:   wss://ws.kraken.com/v2
+    Channel:    "ticker"
+
+    Subscribe payload:
+      { "method": "subscribe", "params": { "channel": "ticker",
+        "symbol": ["BTC/USD", "ETH/USD", ...] }}
+
+    Reconnect logic:
+      - Експоненциален backoff с jitter, max 30s.
+      - При reconnect — re-subscribe за всички активни символи.
+
+    Refcounted subscriptions:
+      - Множество вътрешни consumer-и (alert engine, private-namespace) могат
+        да subscribe-ват за един и същ символ.
+      - krakenLive.subscribe(symbol) увеличава brojcha; unsubscribe — намалява.
+      - Реален WS unsubscribe → само когато brojcha стане 0.
+      - Предотвратява тракане-настройка от един consumer да премахне
+        subscription, който още е нужен на друг.
+
+    EventEmitter API:
+      - "tick" (symbol, price, timestamp) — за всеки subscribe-нат символ.
+      - "open", "close", "reconnect", "error" — статус events за logging.
+
+  REST OHLC (HISTORY ZA OTCHETI)
+
+    Endpoint:   https://api.kraken.com/0/public/OHLC
+    Query:      pair=<KRAKEN_REST_PAIR>, interval=<minutes>, since=<unix_ts>
+
+    Особености:
+      - Kraken връща макс 720 свещи на заявка.
+      - Различни pair формати за WS vs REST (BTC/USD vs XBTUSD за BTC).
+      - pair-mapping.ts превежда между bare символ и двата формата.
+
+  TOP-3 PUBLIC SOCKET NAMESPACE
+
+    - Анонимни клиенти влизат на /public namespace без auth.
+    - Сървърът само emit-ва "prices:top" payload на всеки tick на BTC, ETH,
+      SOL (хардкоднати).
+    - На клиента се показват в hero лента на началната страница.
+
+
+================================================================================
+   8. СИГУРНОСТ И ВАЛИДАЦИЯ (4 СЛОЯ)
+================================================================================
+
+  СЛОЙ 1 — CORS
+    config.CLIENT_ORIGIN е comma-separated списък (поддържа повече от един dev
+    port). Custom origin функция в cors() middleware-а проверява спрямо
+    allow-list. Любой origin извън списъка → 403 пред да стигне до handler-а.
+
+  СЛОЙ 2 — JWT + bcrypt
+    - jsonwebtoken HS256 с JWT_SECRET (32+ char), 7 дни TTL.
+    - bcrypt 10 rounds за пароли. Никога не връщаме hash-а в API отговори.
+    - Защита от user enumeration: register връща 409 EMAIL_TAKEN; login винаги
+      връща 401 INVALID_CREDENTIALS независимо дали email или password е
+      грешен.
+
+  СЛОЙ 3 — ZOD НА HTTP ГРАНИЦАТА
+    Всеки route има zodValidate middleware който проверява params, query, и
+    body. Грешки → 400 VALIDATION_ERROR с подробни поле-по-поле съобщения.
+    Примери:
+      - OrderBody: { symbol: string, amount: string|number → Decimal }
+      - CreateReportBody: superRefine() гарантира ТОЧНО ЕДНО от startDate /
+        rollingDays и startDate < endDate.
+      - PriceAlertBody: targetPrice > 0, direction ENUM.
+
+  СЛОЙ 4 — SERVICE GUARDS
+    Допълнителни проверки в service-ите, които не зависят от Zod:
+      - assertKnownSymbol(symbol) — pair-mapping cache.
+      - assertWindowOrdering(start, end).
+      - assertDatesNotInFuture(start, end).
+      - assertExactlyOneAnchor(startDate, rollingDays).
+    Това гарантира че дори ако бъдеща промяна заобиколи Zod (или има PATCH 
+    merge bug), runtime-ът все пак ще върне 400 със семантичен код.
+
+  ДРУГИ МЕРКИ
+    - Owner-scoped 404: GET /api/orders/<id> на чужд user връща 404, не 403.
+      Кросс-user ID-та не са изброими.
+    - Атомарни updateMany — alert trigger е updateMany({ id, isTriggered:
+      false }), което прави double-fire невъзможен дори при race.
+    - Decimal математика навсякъде за пари — никаква float грешка.
+    - SELECT FOR UPDATE в правилен ред (user преди holding) за предотвратяване
+      на deadlocks.
+
+
+================================================================================
+   9. API ENDPOINTS
+================================================================================
+
+  AUTH
+    POST   /api/auth/register     { name, email, password, repeatPassword }
+                                  → { token, user }
+    POST   /api/auth/login        { email, password } → { token, user }
+
+  USERS
+    GET    /api/users/me          → user обект (auth required)
+    POST   /api/users/reset       → пълен ресет на сметката
+    GET    /api/users             → list всички (admin only)
+    GET    /api/users/:id         → детайли (admin only)
+    PUT    /api/users/:id         → промяна на роля (admin only)
+    DELETE /api/users/:id         → каскадно изтриване (admin only)
+
+  CRYPTO ASSETS
+    GET    /api/crypto-assets               → активни асети
+    POST   /api/crypto-assets               (admin)
+    PUT    /api/crypto-assets/:id           (admin)
+    DELETE /api/crypto-assets/:id           (soft, admin)
+
+  ORDERS
+    GET    /api/orders                      → ордерите на user-а (optional 
+                                              ?symbol= филтър)
+    POST   /api/orders/buy                  { symbol, amount }
+    POST   /api/orders/sell                 { symbol, amount }
+
+  HOLDINGS
+    GET    /api/holdings                    → всички (с current price/value)
+    GET    /api/holdings?symbol=BTC         → конкретен holding
+
+  WATCHLIST
+    GET    /api/watchlist
+    POST   /api/watchlist                   { symbol, notes? }
+    DELETE /api/watchlist/:id
+
+  ALERTS
+    GET    /api/alerts
+    POST   /api/alerts                      { symbol, targetPrice, direction }
+    PUT    /api/alerts/:id                  { isActive? и др. }
+    DELETE /api/alerts/:id
+
+  REPORTS
+    GET    /api/reports                     → user-овите templates
+    POST   /api/reports                     → нов template
+    GET    /api/reports/:id
+    PUT    /api/reports/:id
+    DELETE /api/reports/:id
+    GET    /api/reports/:id/run             → ReportRunResponse JSON
+    POST   /api/reports/:id/pdf             → application/pdf
+
+  SOCKET.IO
+
+    /public  (без auth)
+      Server → client:
+        "prices:top"      { items: [{symbol, price, change24h}, ...] }
+
+    /  (приватен, JWT в handshake.auth.token)
+      Client → server:
+        "subscribe"       { symbols: [...] }
+        "unsubscribe"     { symbols: [...] }
+
+      Server → client:
+        "price:update"    { symbol, price, t }
+        "alert:triggered" { id, symbol, targetPrice, direction, triggeredAt }
+        "subscribe:error" { symbols: unknown, reason: "unknown_symbol" }
+
+
+================================================================================
+   10. СТАРТИРАНЕ НА ПРОЕКТА ЛОКАЛНО
+================================================================================
+
+  ПРЕДВАРИТЕЛНИ ИЗИСКВАНИЯ
+    - Node.js 20+
+    - npm 10+
+    - Docker (по избор, най-лесният начин за Postgres)
+    - Браузър с поддръжка на Notifications API (Chrome / Edge / Firefox)
+
+  СТЪПКИ
+
+    1. Клониране на репозиторито
+
+       git clone https://github.com/danielstefanov212/CryptoSim.git
+       cd CryptoSim
+
+    2. Стартиране на PostgreSQL през Docker
+
+       docker compose up -d
+       (стартира postgres:16 на порт 5432, db=cryptosim, 
+        user=cryptosim, pass=cryptosim)
+
+    3. Настройка на server .env
+
+       cd server
+       cp .env.example .env
+
+       Минимални стойности:
+         DATABASE_URL="postgresql://cryptosim:cryptosim@localhost:5432/cryptosim"
+         JWT_SECRET=<random 32+ char string>
+         PORT=3001
+         CLIENT_ORIGIN=http://localhost:5173,http://localhost:5174
+
+    4. Database setup (миграции + seed)
+
+       npm install
+       npx prisma migrate deploy
+       npx prisma db seed
+
+       Seed-ът създава:
+         - 20 активни крипто-актива (BTC, ETH, SOL, ...)
+         - 1 admin потребител: admin@cryptosim.local / AdminPass123!
+
+    5. Стартиране на backend (terminal A)
+
+       npm run dev
+       → слуша на http://localhost:3001
+
+    6. Настройка на client .env (terminal B)
+
+       cd ../client
+       cp .env.example .env
+       (VITE_API_BASE=http://localhost:3001 е default-ът)
+
+    7. Стартиране на frontend
+
+       npm install
+       npm run dev
+       → отвори http://localhost:5173
+
+    8. Login
+
+       Като admin: admin@cryptosim.local / AdminPass123!
+       Или се регистрирай като нов trader.
+
+
+================================================================================
+   11. СТРУКТУРА НА РЕПОЗИТОРИТО
+================================================================================
+
+  CryptoSim/  (GitHub root)
+  └── CryptoSim-Node/
+      ├── README.md                  фресх-чекаут инструкции
+      ├── docker-compose.yml         локална Postgres за разработка
+      ├── .gitignore                 изключва node_modules, .env, dist, ...
+      ├── docs/                      тази документация
+      │   ├── documentation.txt
+      │   └── presentation.pdf
+      ├── client/                    React SPA
+      │   ├── package.json
+      │   ├── vite.config.ts
+      │   ├── tsconfig.json
+      │   ├── index.html
+      │   ├── public/
+      │   │   └── favicon.png
+      │   └── src/
+      │       ├── App/               root + routing
+      │       ├── pages/             всяка страница като отделна папка
+      │       ├── components/        преизползваеми UI блокове
+      │       ├── outlets/           private/admin route guards
+      │       ├── services/          HTTP + Socket.IO услуги
+      │       ├── providers/         React контексти
+      │       ├── hooks/             custom React hooks
+      │       └── lib/               типове, утилитарни функции
+      └── server/                    Express + Socket.IO + Prisma
+          ├── package.json
+          ├── tsconfig.json
+          ├── .env.example
+          ├── prisma/
+          │   ├── schema.prisma      7 entity-та
+          │   ├── migrations/        една init миграция
+          │   ├── seed.ts            seed скрипт
+          │   └── seed-catalogue.ts  начален асет каталог
+          └── src/
+              ├── index.ts           bootstrap, graceful shutdown
+              ├── config.ts          Zod-валидиран env loader
+              ├── http/              Express app, CORS, error handler
+              ├── routes/            REST endpoints
+              ├── schemas/           Zod validation schemas
+              ├── services/          бизнес логика
+              ├── auth/              JWT, bcrypt, middleware
+              ├── kraken/            WS клиент, REST OHLC, pair mapping
+              ├── sockets/           public + private namespaces
+              ├── alerts/            in-memory alert engine
+              └── lib/               Prisma client, утилити
+
+
+================================================================================
+   12. ТЕХНИЧЕСКИ РЕШЕНИЯ И КОМПРОМИСИ
+================================================================================
+
+  DECIMAL ВМЕСТО FLOAT
+    Всички парични величини са Prisma.Decimal / decimal.js. Никакво
+    закръгляне или представително грешки. Цената: малко по-многословен код
+    (mul/add вместо * +) и нужда от custom JSON serializer.
+
+  IN-MEMORY ALERT ENGINE
+    Алтернативата би била cron job + database polling. Избрах in-memory
+    индекс заради:
+      - O(1) lookup при tick (Map<symbol, []>).
+      - Нулева latency между tick и trigger.
+      - Лесна интеграция с Kraken WS subscription lifecycle.
+    Цената: state-ът е ephemeral. При restart engine-ът се rebuild-ва от
+    базата при boot — затова базата е source of truth.
+
+  REFCOUNTED SUBSCRIPTIONS
+    Един subscription на Kraken може да обслужва множество consumer-и
+    (alert engine, множество клиентски сокети). Refcount-ът предотвратява
+    един consumer да премахне нужно на друг subscription. Това намалява и
+    натоварването върху Kraken (един WS вместо N).
+
+  REPORTS — БЕЗ ИСТОРИЧЕСКО СЪХРАНЕНИЕ НА ЦЕНИ
+    Решение: при всеки run теглим OHLC от Kraken на момента. 
+    Pro: нулево място в базата, винаги свежи данни, прости миграции.
+    Con: зависимост от Kraken availability при PDF експорт; малко по-бавно
+    (макс 720 точки × N символа, успоредно с Promise.allSettled).
+    Бъдеща стъпка: cache на популярни диапазони в Redis/Postgres.
+
+  PRISMA TRANSACTIONS ЗА АТОМАРНОСТ
+    Всеки BUY/SELL е една prisma.$transaction. Гарантирано: или всички
+    промени се прилагат, или нито една. SELECT FOR UPDATE добавя 
+    pessimistic lock за избягване на race conditions при паралелни ордери.
+
+  TYPESCRIPT ОТ КРАЙ ДО КРАЙ
+    Прозрачни типове през цялото приложение. Prisma client типизира 
+    моделите автоматично; Zod дава inferred TS типове от схемите; client
+    DTO-тата ог-радяват API контрактите. Цената: малко повече настройка
+    на tsconfig и build pipeline, но IDE подкрепата и refactor 
+    безопасността си струват.
+
+  CSS MODULES ВМЕСТО CSS FRAMEWORK
+    Решено в полза на локално-обхватни стилове без runtime overhead. 
+    Дизайнът е консистентен чрез споделени design tokens в :root 
+    custom properties.
+
+
+================================================================================
+   13. КАКВО НАУЧИХ И ВЪЗМОЖНИ СЛЕДВАЩИ СТЪПКИ
+================================================================================
+
+  НАУЧЕНО
+
+    - Колко важна е стриктната десетична математика за пари. Първите 
+      имплементации с number довеждаха до грешки в средната изкупна цена 
+      на 4-та десетична позиция.
+
+    - Lock ordering в база данни. Първоначалният SELL flow заключваше 
+      holding преди user — което при паралелна BUY заявка водеше до 
+      classic AB-BA deadlock. Унифициран lock ред реши проблема.
+
+    - Browser Notifications API е capricious: всеки браузър се държи 
+      леко различно с "denied" → "default" преходи; "Do Not Disturb" 
+      mode на macOS тихо потъва популации. Решение: явен banner за 
+      permission + fallback toast в приложението.
+
+    - Refcount на WebSocket subscriptions е по-важно отколкото изглежда. 
+      Един бъг (consumer A unsubscribe-ва символ, който още е нужен на 
+      consumer B) се проявява само под натоварване и е тежко за дебъг.
+
+    - Server-side rendering на Chart.js (chartjs-node-canvas) изненадващо 
+      работи без особени проблеми при правилно подаване на JSDOM-съвместима 
+      Canvas имплементация.
+
+  ВЪЗМОЖНИ СЛЕДВАЩИ СТЪПКИ
+
+    - Кеширане на исторически OHLC (Redis или Postgres материализиран изглед)
+      за намаляване на натоварването върху Kraken.
+    - Лимитни поръчки (limit / stop-loss), не само пазарни.
+    - Сравнителен benchmark в отчетите (например vs hold-only-BTC).
+    - i18n — поне български + английски през react-i18next.
+    - Email известия (paralelno на browser push) през SendGrid/SES.
+    - Pagination на ордерите (в момента е flat list).
+    - WebSocket компресия и binary frames за намаляване на bandwidth-а.
+    - End-to-end тестове с Playwright за критичните flow-ове.
+
+
+================================================================================
+   КРАЙ НА ДОКУМЕНТАЦИЯТА
+================================================================================
+
+   GitHub:  https://github.com/danielstefanov212/CryptoSim
+   Author:  Daniel Stefanov, FN 0MI0600397
+   Course:  Fullstack Application Development with Node.js + Express.js +
+            React.js, 2026 г.
