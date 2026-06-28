@@ -2,28 +2,21 @@
 
 Short (2–3 min) project presentation in Bulgarian.
 
+- **Ready to submit:** [`presentation.pdf`](./presentation.pdf)
 - Source: [`presentation.md`](./presentation.md) — Marp-flavoured Markdown
 - GitHub repo (linked from the slides): <https://github.com/danielstefanov212/CryptoSim>
 
-## Render to PDF / PPTX
+## Re-render the PDF after editing
 
 [Marp CLI](https://github.com/marp-team/marp-cli) — no install needed via `npx`:
 
 ```bash
-# PDF
-npx -y @marp-team/marp-cli@latest presentation.md --pdf
-
-# PowerPoint
-npx -y @marp-team/marp-cli@latest presentation.md --pptx
-
-# HTML (open in browser, F → fullscreen)
-npx -y @marp-team/marp-cli@latest presentation.md --html
+CHROME_PATH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+  npx -y @marp-team/marp-cli@latest presentation.md --pdf --no-stdin --allow-local-files
 ```
 
-Marp will produce `presentation.pdf` / `presentation.pptx` next to the source.
-
-> The slides include speaker notes in HTML comments — Marp surfaces them as
-> presenter notes in PowerPoint / Keynote and in Marp's own presenter view.
+> The slides include speaker notes in HTML comments — Marp surfaces them in
+> its own presenter view.
 
 ## Live preview while editing
 
